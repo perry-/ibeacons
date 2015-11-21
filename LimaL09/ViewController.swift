@@ -5,13 +5,22 @@
 
 import UIKit
 import SocketIO
+import SwiftyJSON
 
 class ViewController: UIViewController, ProximityContentManagerDelegate {
     
     let socket = SocketIOClient(socketURL: "jeloy.azurewebsites.net:80", options: [.Log(true), .ForcePolling(true)])
+    var currentbeacon = ""
 
+    @IBOutlet weak var current_percent: UILabel!
+    @IBOutlet weak var beacon4: UITextView!
+    @IBOutlet weak var beacon3: UITextView!
+    @IBOutlet weak var beacon2: UITextView!
+    @IBOutlet weak var beacon1: UITextView!
     @IBOutlet weak var label: UILabel!
-    @IBOutlet weak var image: UIImageView!
+    @IBOutlet weak var team: UITextView!
+    @IBOutlet weak var points_red: UILabel!
+    @IBOutlet weak var points_blue: UILabel!
     @IBOutlet weak var activityIndicator: UIActivityIndicatorView!
 
     var proximityContentManager: ProximityContentManager!
@@ -38,9 +47,85 @@ class ViewController: UIViewController, ProximityContentManagerDelegate {
             self.socket.emit("join")
         }
         
-        
         self.socket.on("joined") {data, ack in
-            print("joined")
+            let json = JSON(data)
+            if let team = json[0]["team"].string {
+                if(team == "red"){
+                    self.team.backgroundColor = UIColor.redColor()
+                } else if (team == "blue"){
+                    self.team.backgroundColor = UIColor.blueColor()
+                }
+            }
+        }
+        
+        self.socket.on("teams") {data, ack in
+            let json = JSON(data)
+            
+            if let points_blue = json[0]["blue"]["score"].int {
+                self.points_blue.text = String(points_blue)
+            }
+            if let points_red = json[0]["red"]["score"].int {
+                self.points_red.text = String(points_red)
+            }
+        }
+        
+        self.socket.on("beacons") {data, ack in
+            let json = JSON(data)
+            
+            if(self.currentbeacon != ""){
+                let currentbeacon_score = json[0][self.currentbeacon]["score"]
+                self.current_percent.text = String(currentbeacon_score) + "%"
+                print(currentbeacon_score)
+            }
+            
+            if let beacon1_cappedby = json[0]["Lima"]["cappedby"].int {
+                self.beacon1.text = "Lima"
+                
+                if(beacon1_cappedby == 1){
+                    self.beacon1.backgroundColor = UIColor.redColor()
+                } else if (beacon1_cappedby == 0){
+                    self.beacon1.backgroundColor = UIColor.grayColor()
+                } else if (beacon1_cappedby == -1){
+                    self.beacon1.backgroundColor = UIColor.blueColor()
+                }
+            }
+            
+            if let beacon2_cappedby = json[0]["Santiago"]["cappedby"].int {
+                self.beacon2.text = "Santiago"
+                
+                if(beacon2_cappedby == 1){
+                    self.beacon2.backgroundColor = UIColor.redColor()
+                } else if (beacon2_cappedby == 0){
+                    self.beacon2.backgroundColor = UIColor.grayColor()
+                } else if (beacon2_cappedby == -1){
+                    self.beacon2.backgroundColor = UIColor.blueColor()
+                }
+            }
+        
+            if let beacon3_cappedby = json[0]["Shanghai"]["cappedby"].int {
+                self.beacon3.text = "Shanghai"
+                
+                if(beacon3_cappedby == 1){
+                    self.beacon3.backgroundColor = UIColor.redColor()
+                } else if (beacon3_cappedby == 0){
+                    self.beacon3.backgroundColor = UIColor.grayColor()
+                } else if (beacon3_cappedby == -1){
+                    self.beacon3.backgroundColor = UIColor.blueColor()
+                }
+            }
+            
+            if let beacon4_cappedby = json[0]["Buenos Aires"]["cappedby"].int {
+                self.beacon4.text = "Buenos Aires"
+                
+                if(beacon4_cappedby == 1){
+                    self.beacon4.backgroundColor = UIColor.redColor()
+                } else if (beacon4_cappedby == 0){
+                    self.beacon4.backgroundColor = UIColor.grayColor()
+                } else if (beacon4_cappedby == -1){
+                    self.beacon4.backgroundColor = UIColor.blueColor()
+                }
+            }
+            
         }
         
         self.socket.connect()
@@ -55,11 +140,11 @@ class ViewController: UIViewController, ProximityContentManagerDelegate {
             self.socket.emit("cap", beaconDetails.beaconName)
             
             self.label.text = beaconDetails.beaconName
-            print(beaconDetails.beaconName)
+            self.currentbeacon = beaconDetails.beaconName
+            
         } else {
             self.view.backgroundColor = EstimoteCloudBeaconDetails.neutralColor
             self.label.text = "No beacons in range."
-            self.image.hidden = true
         }
     }
 
