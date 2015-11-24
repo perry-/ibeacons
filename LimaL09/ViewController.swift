@@ -11,6 +11,9 @@ class ViewController: UIViewController, ProximityContentManagerDelegate {
     
     let socket = SocketIOClient(socketURL: "jeloy.azurewebsites.net:80", options: [.Log(true), .ForcePolling(true)])
     var currentbeacon = ""
+    var joined = false
+    var emitting = false
+    var capping = false
 
     @IBOutlet weak var current_percent: UILabel!
     @IBOutlet weak var beacon4: UITextView!
@@ -33,10 +36,9 @@ class ViewController: UIViewController, ProximityContentManagerDelegate {
         self.proximityContentManager = ProximityContentManager(
             beaconIDs: [
                 BeaconID(UUIDString: "B9407F30-F5F8-466E-AFF9-25556B57FE6D", major: 20479, minor: 18538), //Lima
-                BeaconID(UUIDString: "B9407F30-F5F8-466E-AFF9-25556B57FE6D", major: 43101, minor: 17907), //Santiago
-                BeaconID(UUIDString: "B9407F30-F5F8-466E-AFF9-25556B57FE6D", major: 32718, minor: 63524),  //Gang
                 BeaconID(UUIDString: "B9407F30-F5F8-466E-AFF9-25556B57FE6D", major: 34726, minor: 4762),  //Shanghai
-                BeaconID(UUIDString: "B9407F30-F5F8-466E-AFF9-25556B57FE6D", major: 5909, minor: 28213)  //Blomster
+                BeaconID(UUIDString: "EB384FAC-791D-F2BE-62F5-C60E1A9D093D", major: 2171, minor: 62640),  //Storo
+                BeaconID(UUIDString: "B9407F30-F5F8-466E-AFF9-25556B57FE6D", major: 5909, minor: 28213)  //Vika P-hus
             ],
             beaconContentFactory: EstimoteCloudBeaconDetailsFactory())
         self.proximityContentManager.delegate = self
@@ -44,17 +46,24 @@ class ViewController: UIViewController, ProximityContentManagerDelegate {
         
         self.socket.on("connect") {data, ack in
             print("socket connected")
-            self.socket.emit("join")
+            if(self.joined == false){
+                self.socket.emit("join")
+            }
         }
         
         self.socket.on("joined") {data, ack in
             let json = JSON(data)
+            self.joined = true
             if let team = json[0]["team"].string {
                 if(team == "red"){
                     self.team.backgroundColor = UIColor.redColor()
                 } else if (team == "blue"){
                     self.team.backgroundColor = UIColor.blueColor()
                 }
+            }
+            
+            if let role = json[0]["role"].string {
+                self.team.text = role
             }
         }
         
@@ -66,6 +75,10 @@ class ViewController: UIViewController, ProximityContentManagerDelegate {
             }
             if let points_red = json[0]["red"]["score"].int {
                 self.points_red.text = String(points_red)
+            }
+            
+            if(self.capping == true){
+                self.socket.emit("cap", self.currentbeacon)
             }
         }
         
@@ -90,8 +103,8 @@ class ViewController: UIViewController, ProximityContentManagerDelegate {
                 }
             }
             
-            if let beacon2_cappedby = json[0]["Santiago"]["cappedby"].int {
-                self.beacon2.text = "Santiago"
+            if let beacon2_cappedby = json[0]["Storo Parkeringshus"]["cappedby"].int {
+                self.beacon2.text = "Storo Parkeringshus"
                 
                 if(beacon2_cappedby == 1){
                     self.beacon2.backgroundColor = UIColor.redColor()
@@ -114,8 +127,8 @@ class ViewController: UIViewController, ProximityContentManagerDelegate {
                 }
             }
             
-            if let beacon4_cappedby = json[0]["Buenos Aires"]["cappedby"].int {
-                self.beacon4.text = "Buenos Aires"
+            if let beacon4_cappedby = json[0]["Vika P-hus"]["cappedby"].int {
+                self.beacon4.text = "Vika P-hus"
                 
                 if(beacon4_cappedby == 1){
                     self.beacon4.backgroundColor = UIColor.redColor()
@@ -136,16 +149,28 @@ class ViewController: UIViewController, ProximityContentManagerDelegate {
         self.activityIndicator?.removeFromSuperview()
 
         if let beaconDetails = content as? EstimoteCloudBeaconDetails {
-            
-            self.socket.emit("cap", beaconDetails.beaconName)
+            self.capping = true
+            //self.socket.emit("cap", beaconDetails.beaconName)
             
             self.label.text = beaconDetails.beaconName
             self.currentbeacon = beaconDetails.beaconName
             
         } else {
+            self.capping = false
             self.view.backgroundColor = EstimoteCloudBeaconDetails.neutralColor
-            self.label.text = "No beacons in range."
+            self.label.text = "No beacons"
         }
+    }
+    
+    func update(){
+        self.emitting = false
+    }
+    
+    func beaconManager(manager: AnyObject!, didRangeBeacons beacons: [AnyObject]!,
+        inRegion region: CLBeaconRegion!) {
+            if let nearestBeacon = beacons.first as? CLBeacon {
+                print(nearestBeacon)
+            }
     }
 
     override func preferredStatusBarStyle() -> UIStatusBarStyle {
